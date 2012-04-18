@@ -1,0 +1,85 @@
+<html>
+  <head>
+    <title>Point Sprites Experiment</title>
+
+    <!-- Library which provides vector, matrix & quaternion classes. -->
+    <script type="text/javascript" src="js/gl-matrix.js"></script>
+
+    <!-- Library which provides WebGL setup helpers. -->
+    <script type="text/javascript" src="js/webgl-utils.js"></script>
+
+    <!-- Library which provides a seedable random number generator as a replacement for Math.random. -->
+    <script type="text/javascript" src="js/seedrandom.js"></script>
+
+    <!-- My code for this page. -->
+    <script type="text/javascript" src="js/main.js"></script>
+
+    <!-- Vertex shader. -->
+    <script type="x-shader/x-vertex" id="shader-vs">
+      attribute vec3 vertexPos;
+      attribute vec3 vertexColor;
+
+      uniform mat4 worldToViewportMatrix;
+
+      varying vec4 vColor;
+
+      void main()
+      {
+        vec4 worldPos = vec4(vertexPos, 1);
+        gl_Position = worldToViewportMatrix * worldPos;
+        gl_PointSize = 50.0;
+        vColor = vec4(vertexColor, 1);
+      }
+    </script>
+
+    <!-- Fragment shader. -->
+    <script type="x-shader/x-fragment" id="shader-fs">
+      precision mediump float;
+
+      uniform sampler2D texture;
+
+      varying vec4 vColor;
+
+      void main()
+      {
+        vec4 texColor = texture2D(texture, gl_PointCoord);
+        gl_FragColor = texColor;
+      }
+    </script>
+
+    <!-- Grid vertex shader. -->
+    <script type="x-shader/x-vertex" id="grid-vs">
+      attribute vec3 vertexPos;
+
+      uniform mat4 worldToViewportMatrix;
+      uniform float scale;
+
+      void main()
+      {
+        vec4 worldPos = vec4(vertexPos * pow(10.0, scale), 1);
+        gl_Position = worldToViewportMatrix * worldPos;
+      }
+    </script>
+
+    <!-- Grid fragment shader. -->
+    <script type="x-shader/x-fragment" id="grid-fs">
+      precision mediump float;
+
+      uniform vec3 color;
+
+      void main()
+      {
+        gl_FragColor = vec4(color, 0.25);
+      }
+    </script>
+  </head>
+  <body onload="cat.main('webdraw-canvas');">
+    <canvas id="webdraw-canvas" width="800" height="800"></canvas>
+    <br/>
+    <p>
+      <input type="checkbox" id="showGrid"></input>Show grid
+    </p>
+    <p><button type="button" onclick="tests('test-results');">Run tests</button></p>
+    <div id="test-results"></div>
+  </body>
+</html>

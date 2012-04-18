@@ -27,7 +27,7 @@
       {
         vec4 worldPos = vec4(vertexPos, 1);
         gl_Position = worldToViewportMatrix * worldPos;
-        gl_PointSize = 50.0;
+        gl_PointSize = 10.0;
         vColor = vec4(vertexColor, 1);
       }
     </script>
@@ -46,40 +46,8 @@
         gl_FragColor = texColor;
       }
     </script>
-
-    <!-- Grid vertex shader. -->
-    <script type="x-shader/x-vertex" id="grid-vs">
-      attribute vec3 vertexPos;
-
-      uniform mat4 worldToViewportMatrix;
-      uniform float scale;
-
-      void main()
-      {
-        vec4 worldPos = vec4(vertexPos * pow(10.0, scale), 1);
-        gl_Position = worldToViewportMatrix * worldPos;
-      }
-    </script>
-
-    <!-- Grid fragment shader. -->
-    <script type="x-shader/x-fragment" id="grid-fs">
-      precision mediump float;
-
-      uniform vec3 color;
-
-      void main()
-      {
-        gl_FragColor = vec4(color, 0.25);
-      }
-    </script>
   </head>
-  <body onload="cat.main('webdraw-canvas');">
-    <canvas id="webdraw-canvas" width="800" height="800"></canvas>
-    <br/>
-    <p>
-      <input type="checkbox" id="showGrid"></input>Show grid
-    </p>
-    <p><button type="button" onclick="tests('test-results');">Run tests</button></p>
-    <div id="test-results"></div>
+  <body onload="wtf.main('wtf-canvas');">
+    <canvas id="wtf-canvas" width="800" height="800"></canvas>
   </body>
 </html>

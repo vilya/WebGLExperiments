@@ -1,4 +1,4 @@
-var cat = function () {
+var wtf = function () {  // start of the wtf namespace
 
 //
 // Global variables
@@ -98,41 +98,6 @@ function texture(textureURL)
 }
 
 
-function grid(len)
-{
-  var size = len * 2;
-  var gridCoords = [];
-  for (var row = 0; row <= size; row++) {
-    var z = 2.0 * (row / size) - 1.0;
-    for (var col = 0; col <= size; col++) {
-      var x = 2.0 * (col / size) - 1.0;
-      gridCoords.push(x, 0, z);
-    }
-  }
-
-  var gridIndexes = [];
-  for (var i = 0; i <= size; i++)
-    gridIndexes.push(i * (size + 1), i * (size + 1) + size, i, (size + 1) * size + i);
-
-  var buffer = gl.createBuffer();
-  var indexBuffer = gl.createBuffer();
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(gridCoords), gl.STATIC_DRAW);
-
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(gridIndexes), gl.STATIC_DRAW);
-
-  var theGrid = {
-    'buffer': buffer,
-    'indexBuffer': indexBuffer,
-    'indexCount': gridIndexes.length
-  };
-
-  return theGrid;
-}
-
-
 function init(canvas)
 {
   gl = WebGLUtils.setupWebGL(canvas);
@@ -158,11 +123,9 @@ function init(canvas)
   gl.enable(gl.CULL_FACE);
 
   // Set up the shaders
-  gShaderProgram = program("shader-vs", "shader-fs", [ "worldToViewportMatrix", "texture" ], [ "vertexPos", "vertexColor" ]);
-  gGridShader = program("grid-vs", "grid-fs", [ "worldToViewportMatrix", "scale", "color" ], [ "vertexPos" ]);
-
-  // Set up the grid.
-  gl.grid = grid(10);
+  gShaderProgram = program("shader-vs", "shader-fs",
+      [ "worldToViewportMatrix", "texture" ], // uniforms
+      [ "vertexPos", "vertexColor" ] );       // attributes
 
   // Set up the world.
   var world = {
@@ -235,104 +198,7 @@ function draw()
   gl.bindTexture(gl.TEXTURE_2D, null);
 
   gShaderProgram.disableAttribs();
-
-  // Draw the grid.
-  var showGrid = document.getElementById("showGrid").checked;
-  if (showGrid) {
-    gl.useProgram(gGridShader);
-    gGridShader.enableAttribs();
-
-    gl.uniformMatrix4fv(gGridShader.uniforms.worldToViewportMatrix, false, transform);
-
-    var grid = gl.grid;
-    gl.bindBuffer(gl.ARRAY_BUFFER, grid.buffer);
-    gl.vertexAttribPointer(gGridShader.attribs.vertexPosAttr, 3, gl.FLOAT, false, 12, 0);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, grid.indexBuffer);
-
-    var scaleColors = [
-      [ 0.0, 0.0, 0.3 ],
-      [ 0.4, 0.4, 0.4 ],
-      [ 0.0, 0.0, 0.3 ],
-    ];
-    for (var i = 0; i < 3; i++) {
-      gl.uniform3fv(gGridShader.uniforms.color, scaleColors[i]);
-      gl.uniform1f(gGridShader.uniforms.scale, i);
-      gl.drawElements(gl.LINES, grid.indexCount, gl.UNSIGNED_SHORT, 0);
-    }
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-
-    gGridShader.disableAttribs();
-  }
 }
-
-
-/*
-function drawMesh(mesh, transform)
-{
-  var pointsAttr = mesh.attrs[0];
-  if (!mesh.indexBuffer || !pointsAttr.buffer)
-    throw "Mesh has no index buffer or points buffer.";
-
-  var showSolid = document.getElementById("showSolid").checked;
-  if (showSolid) {
-    gl.useProgram(gShaderProgram);
-    gShaderProgram.enableAttribs();
-    gl.uniformMatrix4fv(gShaderProgram.uniforms.worldToViewportMatrix, false, transform);
-
-    for (var i = 0; i < mesh.attrs.length; i++) {
-      var attr = mesh.attrs[i];
-      gl.bindBuffer(gl.ARRAY_BUFFER, attr.buffer);
-      gl.vertexAttribPointer(gShaderProgram.attribs[attr.name], attr.valsPerItem, gl.FLOAT, false, attr.valsPerItem * 4, 0);
-    }
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indexBuffer);
-    gl.drawElements(gl.TRIANGLES, mesh.indexCount, gl.UNSIGNED_SHORT, 0);
-  
-    gShaderProgram.disableAttribs();
-  }
-
-  // Now draw the wireframe and maybe the points as well. We use the same
-  // shader for both, so we can just do the initialisation once.
-  var showWireframe = document.getElementById("showWireframe").checked;
-  var showPoints = document.getElementById("showPoints").checked;
-
-  if (showWireframe || showPoints) {
-    gl.useProgram(gWireframeShader);
-    gWireframeShader.enableAttribs();
-    gl.uniformMatrix4fv(gWireframeShader.uniforms.worldToViewportMatrix, false, transform);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.attrs[mesh.kAttrPoints].buffer);
-    gl.vertexAttribPointer(gWireframeShader.attribsvertexPos, 3, gl.FLOAT, false, 12, 0);
-  }
-
-  if (showWireframe) {
-    gl.uniform4fv(gWireframeShader.uniforms.color, [0.7, 0.7, 0.7, 1.0]);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.outlineIndexBuffer);
-    gl.enable(gl.POLYGON_OFFSET_FILL);
-    gl.polygonOffset(0, -2);
-    for (var i = 0; i < mesh.faces.length; i++)
-      gl.drawElements(gl.LINE_LOOP, (mesh.start[i+1] - mesh.start[i]), gl.UNSIGNED_SHORT, mesh.start[i] * 2);
-    gl.disable(gl.POLYGON_OFFSET_FILL);
-  }
-
-  if (showPoints) {
-    gl.uniform4fv(gWireframeShader.uniforms.color, [1.0, 1.0, 1.0, 1.0]);
-    gl.enable(gl.POLYGON_OFFSET_FILL);
-    gl.polygonOffset(0, -4);
-    gl.drawArrays(gl.POINTS, 0, mesh.edges.length);
-    gl.disable(gl.POLYGON_OFFSET_FILL);
-  }
-
-  if (showWireframe || showPoints) {
-    gWireframeShader.disableAttribs();
-  }
-  
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-}
-*/
 
 
 function keyDown(event)
@@ -441,46 +307,27 @@ function radians(angleInDegrees)
 }
 
 
-function errorHTML(msg)
-{
-  str = msg.toString().replace("\n", "<br/>");
-  return '' +
-    '<table style="background-color: #FAA; width: 100%; height: 100%;"><tr>' +
-    '<td align="middle">' +
-    '<div style="display: table-cell; vertical-align: middle;">' +
-    '<div style="">' + str + '</div>' +
-    '</div>' +
-    '</td></tr></table>';
-}
-
-
 //
 // Main
 //
 
 function main(canvasId)
 {
-  //try {
-    var canvas = document.getElementById(canvasId);
-    init(canvas);
+  var canvas = document.getElementById(canvasId);
+  init(canvas);
 
-    document.onkeydown = keyDown;
-    document.onkeyup = keyUp;
-    canvas.onmousedown = mouseDown;
-    document.onmouseup = mouseUp;
-    document.onmousemove = mouseMove;
+  document.onkeydown = keyDown;
+  document.onkeyup = keyUp;
+  canvas.onmousedown = mouseDown;
+  document.onmouseup = mouseUp;
+  document.onmousemove = mouseMove;
 
-    tick = function () {
-      window.requestAnimFrame(tick);
-      handleKeys();
-      draw();
-    }
-    tick();
-  //}
-  //catch (e) {
-  //  var container = canvas ? canvas.parentNode : document;
-  // container.innerHTML = errorHTML(e);
-  //}
+  tick = function () {
+    window.requestAnimFrame(tick);
+    handleKeys();
+    draw();
+  }
+  tick();
 }
 
 
@@ -488,4 +335,5 @@ return {
   'main': main
 };
 
-}();
+}(); // end of the wtf namespace.
+

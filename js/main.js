@@ -116,7 +116,8 @@ function init(canvas)
 
   // Set up the default camera projection matrix.
   gl.projectionMatrix = mat4.identity();
-  mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, gl.projectionMatrix);
+  //mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, gl.projectionMatrix);
+  mat4.ortho(0.0, 1.0, 0.0, 1.0, 10.0, -10.0, gl.projectionMatrix);
 
   // Set up the camera positioning matrix.
   gl.cameraMatrix = mat4.identity();

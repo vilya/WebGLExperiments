@@ -1,6 +1,13 @@
 var wtf = function () {  // start of the wtf namespace
 
 //
+// Constants
+//
+
+var kParticleZ = 0.1;
+
+
+//
 // Global variables
 //
 
@@ -124,32 +131,24 @@ function init(canvas)
 
   // Set up the shaders
   gShaderProgram = program("shader-vs", "shader-fs",
-      [ "worldToViewportMatrix", "texture" ], // uniforms
-      [ "vertexPos", "vertexColor" ] );       // attributes
+      [ "worldToViewportMatrix", "zDepth", "texture" ], // uniforms
+      [ "vertexPos" ] );                                // attributes
 
   // Set up the world.
   var world = {
     'vertexCount': 1024,
     'vertexPos': gl.createBuffer(),
-    'vertexColor': gl.createBuffer(),
     'texture': texture("img/crate.gif")
   };
   var points = [];
   var colors = [];
   Math.seedrandom('JSPointSprites');
   for (var i = 0; i < world.vertexCount; i++) {
-    for (var j = 0; j < 3; j++) {
-      points.push(Math.random() * 10.0 - 5.0); 
-      colors.push(Math.random());
-    }
+    for (var j = 0; j < 2; j++)
+      points.push(Math.random() * 5.0 - 2.5); 
   }
-
   gl.bindBuffer(gl.ARRAY_BUFFER, world.vertexPos);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, world.vertexColor);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   gl.world = world;
@@ -183,13 +182,11 @@ function draw()
   gl.useProgram(gShaderProgram);
   gShaderProgram.enableAttribs();
   gl.uniformMatrix4fv(gShaderProgram.uniforms.worldToViewportMatrix, false, transform);
+  gl.uniform1f(gShaderProgram.uniforms.zDepth, kParticleZ);
   gl.uniform1i(gShaderProgram.uniforms.texture, 0);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, world.vertexPos);
-  gl.vertexAttribPointer(gShaderProgram.attribs['vertexPos'], 3, gl.FLOAT, false, 12, 0);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, world.vertexColor);
-  gl.vertexAttribPointer(gShaderProgram.attribs['vertexColor'], 3, gl.FLOAT, false, 12, 0);
+  gl.vertexAttribPointer(gShaderProgram.attribs['vertexPos'], 2, gl.FLOAT, false, 8, 0);
 
   gl.drawArrays(gl.POINTS, 0, world.vertexCount);
 

@@ -16,19 +16,16 @@
 
     <!-- Vertex shader. -->
     <script type="x-shader/x-vertex" id="shader-vs">
-      attribute vec3 vertexPos;
-      attribute vec3 vertexColor;
+      attribute vec2 vertexPos;
 
       uniform mat4 worldToViewportMatrix;
-
-      varying vec4 vColor;
+      uniform float zDepth;
 
       void main()
       {
-        vec4 worldPos = vec4(vertexPos, 1);
+        vec4 worldPos = vec4(vertexPos, zDepth, 1);
         gl_Position = worldToViewportMatrix * worldPos;
         gl_PointSize = 10.0;
-        vColor = vec4(vertexColor, 1);
       }
     </script>
 
@@ -37,8 +34,6 @@
       precision mediump float;
 
       uniform sampler2D texture;
-
-      varying vec4 vColor;
 
       void main()
       {

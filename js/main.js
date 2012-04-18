@@ -138,17 +138,30 @@ function init(canvas)
   var world = {
     'vertexCount': 1024,
     'vertexPos': gl.createBuffer(),
-    'texture': texture("img/crate.gif")
+    'texture': texture("img/crate.gif"),
+    'points': null,
+    'velocities': null,
+    'lastUpdate': 0
   };
   var points = [];
-  var colors = [];
+  var velocities = [];
   Math.seedrandom('JSPointSprites');
   for (var i = 0; i < world.vertexCount; i++) {
-    for (var j = 0; j < 2; j++)
-      points.push(Math.random() * 5.0 - 2.5); 
+    points.push(Math.random(), Math.random()); // Coords are between 0 and 1.
+
+    // Make sure every particle is moving at a minimum speed.
+    var angle = radians(Math.random() * 360);
+    var speed = Math.random() * 0.3 + 0.1;
+    var vx = Math.cos(angle) * speed;
+    var vy = Math.sin(angle) * speed;
+    velocities.push(vx, vy);
   }
+  world.points = new Float32Array(points);
+  world.velocities = new Float32Array(velocities);
+  world.lastUpdate = Date.now();
+
   gl.bindBuffer(gl.ARRAY_BUFFER, world.vertexPos);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, world.points, gl.DYNAMIC_DRAW);
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   gl.world = world;
@@ -198,6 +211,34 @@ function draw()
 }
 
 
+function update()
+{
+  var world = gl.world;
+  var end = world.vertexCount * 2;
+  var now = Date.now();
+
+  var dt = (now - world.lastUpdate) / 1000.0; // in seconds
+
+  for (var i = 0; i < end; i++) {
+    world.points[i] += world.velocities[i] * dt;
+    if (world.points[i] < 0) {
+      world.points[i] = -world.points[i];
+      world.velocities[i] = -world.velocities[i];
+    }
+    else if (world.points[i] > 1) {
+      world.points[i] = 2.0 - world.points[i];
+      world.velocities[i] = -world.velocities[i];
+    }
+  }
+
+  world.lastUpdate = now;
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, world.vertexPos);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, world.points);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
+
+
 function keyDown(event)
 {
   gInput.keysDown[event.keyCode] = true;
@@ -214,8 +255,8 @@ function keyUp(event)
 
 function handleKeys()
 {
-  var speed = 0.2;
-  var angle = radians(1);
+  var speed = 0.10;
+  var angle = radians(3);
 
   if (gInput.keysDown['A'])
     mat4.translate(gl.cameraMatrix, [-speed, 0, 0]);      // move right
@@ -323,6 +364,7 @@ function main(canvasId)
     window.requestAnimFrame(tick);
     handleKeys();
     draw();
+    update();
   }
   tick();
 }

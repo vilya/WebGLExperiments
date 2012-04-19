@@ -41,8 +41,42 @@
         gl_FragColor = texColor;
       }
     </script>
+
+    <!-- Text vertex shader. -->
+    <script type="x-shader/x-vertex" id="text-vs">
+      attribute vec2 vertexPos;
+      attribute vec2 vertexUV;
+
+      uniform mat4 worldToViewportMatrix;
+      uniform float zDepth;
+
+      varying vec2 vTexCoords;
+
+      void main()
+      {
+        vec4 worldPos = vec4(vertexPos, zDepth, 1);
+        gl_Position = worldToViewportMatrix * worldPos;
+        vTexCoords = vertexUV;
+      }
+    </script>
+
+    <!-- Text fragment shader. -->
+    <script type="x-shader/x-fragment" id="text-fs">
+      precision mediump float;
+
+      uniform sampler2D texture;
+
+      varying vec2 vTexCoords;
+
+      void main()
+      {
+        vec4 texColor = texture2D(texture, vTexCoords);
+        gl_FragColor = texColor;
+      }
+    </script>
   </head>
-  <body onload="wtf.main('wtf-canvas');">
-    <canvas id="wtf-canvas" width="800" height="800"></canvas>
+  <body onload="wtf.main();">
+    <canvas id="wtf-draw-canvas" width="800" height="800"></canvas>
+    <canvas id="wtf-text-canvas" width="512" height="128" style="display: none;"></canvas>
   </body>
 </html>

@@ -5,19 +5,22 @@ var wtf = function () {  // start of the wtf namespace
 //
 
 var kParticleZ = 0.1;
+var kOverlayZ = 0.2;
 
 
 //
 // Global variables
 //
 
-// Wrapper for all WebGL functions and constants. Call initWebGL(canvas) to
-// initialise it before using.
+// Wrapper for all WebGL functions and constants.
 var gl;
+
+// The 2D canvas context we use for background rendering of text.
+var tl;
 
 // The current shader program.
 var gShaderProgram
-var gGridShader;
+var gTextShader;
 
 // Input handling variables.
 var gInput = {
@@ -89,9 +92,8 @@ function texture(textureURL)
   tex.isLoaded = false;
   tex.image = new Image();
   tex.image.onload = function () {
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-
     gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tex.image);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -105,14 +107,62 @@ function texture(textureURL)
 }
 
 
-function init(canvas)
+function text(x, y, message)
 {
-  gl = WebGLUtils.setupWebGL(canvas);
+  // Figure out the size we need the canvas to be.
+  //var textSize = ctx.measureText(message);
+
+  tl.clearRect(0, 0, tl.canvas.width, tl.canvas.height);
+  tl.fillText(message, x, y);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, gl.textTexture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tl.canvas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  var world = gl.world;
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  gl.useProgram(gTextShader);
+  gTextShader.enableAttribs();
+  gl.uniformMatrix4fv(gTextShader.uniforms.worldToViewportMatrix, false, gl.projectionMatrix);
+
+  gl.uniform1f(gTextShader.uniforms.zDepth, kOverlayZ);
+  gl.uniform1i(gTextShader.uniforms.texture, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.textPos);
+  gl.vertexAttribPointer(gTextShader.attribs['vertexPos'], 2, gl.FLOAT, false, 8, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.textUV);
+  gl.vertexAttribPointer(gTextShader.attribs['vertexUV'], 2, gl.FLOAT, false, 8, 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  gl.disable(gl.BLEND);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+
+  gTextShader.disableAttribs();
+}
+
+
+function init(drawCanvas, textCanvas)
+{
+  gl = WebGLUtils.setupWebGL(drawCanvas);
   if (!gl)
     return;
+  gl.viewportWidth = drawCanvas.width;
+  gl.viewportHeight = drawCanvas.height;
 
-  gl.viewportWidth = canvas.width;
-  gl.viewportHeight = canvas.height;
+  tl = textCanvas.getContext('2d');
+
+  tl.fillStyle = "#CC0000"; 	  // This determines the text colour, it can take a hex value or rgba value (e.g. rgba(255,0,0,0.5))
+  tl.textAlign = "left";       // This determines the alignment of text, e.g. left, center, right
+  tl.textBaseline = "top";	// This determines the baseline of the text, e.g. top, middle, bottom
+  tl.font = "48px monospace";	// This determines the size of the text and the font family used
 
   // Set up the default camera projection matrix.
   gl.projectionMatrix = mat4.identity();
@@ -124,6 +174,26 @@ function init(canvas)
   mat4.translate(gl.cameraMatrix, [0, 0, 5]);
   gl.targetDistance = 5;
 
+  // Set up a texture for generating text into.
+  gl.textTexture = gl.createTexture();
+  gl.textPos = gl.createBuffer();
+  gl.textUV = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.textPos);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    0.1, 0.1,
+    0.5, 0.1,
+    0.1, 0.3,
+    0.5, 0.3
+  ]), gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.textUV);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    0.0, 0.0,
+    1.0, 0.0,
+    0.0, 1.0,
+    1.0, 1.0
+  ]), gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
   // Set up some OpenGL state.
   gl.clearColor(0.1, 0.1, 0.1, 1.0);
   gl.cullFace(gl.BACK);
@@ -134,6 +204,9 @@ function init(canvas)
   gShaderProgram = program("shader-vs", "shader-fs",
       [ "worldToViewportMatrix", "zDepth", "texture" ], // uniforms
       [ "vertexPos" ] );                                // attributes
+  gTextShader = program("text-vs", "text-fs",
+      [ "worldToViewportMatrix", "zDepth", "texture" ], // uniforms
+      [ "vertexPos", "vertexUV" ] );                    // attributes
 
   // Set up the world.
   var world = {
@@ -196,12 +269,11 @@ function draw()
   gl.useProgram(gShaderProgram);
   gShaderProgram.enableAttribs();
   gl.uniformMatrix4fv(gShaderProgram.uniforms.worldToViewportMatrix, false, transform);
+
   gl.uniform1f(gShaderProgram.uniforms.zDepth, kParticleZ);
   gl.uniform1i(gShaderProgram.uniforms.texture, 0);
-
   gl.bindBuffer(gl.ARRAY_BUFFER, world.vertexPos);
   gl.vertexAttribPointer(gShaderProgram.attribs['vertexPos'], 2, gl.FLOAT, false, 8, 0);
-
   gl.drawArrays(gl.POINTS, 0, world.vertexCount);
 
   gl.disable(gl.BLEND);
@@ -209,6 +281,10 @@ function draw()
   gl.bindTexture(gl.TEXTURE_2D, null);
 
   gShaderProgram.disableAttribs();
+
+  // Draw the overlay text.
+  var frameTime = new Number(Date.now() - world.lastUpdate);
+  text(1, 1, "Frame time: " + frameTime.toFixed(0) + " ms");
 }
 
 
@@ -350,14 +426,20 @@ function radians(angleInDegrees)
 // Main
 //
 
-function main(canvasId)
+function main(drawCanvasId, textCanvasId)
 {
-  var canvas = document.getElementById(canvasId);
-  init(canvas);
+  if (!drawCanvasId)
+    drawCanvasId = "wtf-draw-canvas";
+  if (!textCanvasId)
+    textCanvasId = "wtf-text-canvas";
+
+  var drawCanvas = document.getElementById(drawCanvasId);
+  var textCanvas = document.getElementById(textCanvasId);
+  init(drawCanvas, textCanvas);
 
   document.onkeydown = keyDown;
   document.onkeyup = keyUp;
-  canvas.onmousedown = mouseDown;
+  drawCanvas.onmousedown = mouseDown;
   document.onmouseup = mouseUp;
   document.onmousemove = mouseMove;
 
